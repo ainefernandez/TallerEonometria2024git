@@ -1,0 +1,71 @@
+---
+title: "Clase3"
+author: "Ainé Fernández"
+format: pdf
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Ejemplo 2: Análisis de regresión
+
+```{r,librerias}
+#| echo: false
+library(wooldridge)
+library(tidyverse)
+library(equatiomatic)
+library(stargazer)
+```
+
+```{r,filter}
+#| echo: false
+data("saving")
+saving<-saving %>%
+  filter(sav>0,inc<20000,sav<inc)
+dim(saving)
+head(saving)
+```
+
+```{r,summary}
+#| echo: false
+summary(saving)
+```
+
+```{r,reg}
+#| echo: false
+modelo1<-lm(sav~inc,data = saving)
+```
+
+```{r,s}
+#| echo: false
+summary(modelo1)
+```
+
+```{r,resultados}
+#| results: asis
+#| echo: false
+extract_eq(modelo1,intercept = "beta")
+extract_eq(modelo1,use_coefs = T)
+extract_eq(modelo1,use_coefs = T,coef_digits=3,se_subscripts = T)
+```
+
+```{r,stargazer}
+#| results: asis
+#| echo: false
+stargazer(modelo1,header=FALSE,title = "Regresión lineal simple")
+```
+
+```{r,muchos}
+modelo2 <- lm(sav ~ inc+size, data = saving)
+modelo3 <- lm(sav ~ inc+size+educ, data = saving)
+modelo4 <- lm(sav ~ inc+size+educ+age, data = saving)
+```
+
+```{r,stargazer2,results='asis'}
+#| results: asis
+#| echo: false
+stargazer(modelo1,modelo2,modelo3,modelo4,
+header = FALSE,title="Diferentes especificaciones")
+```

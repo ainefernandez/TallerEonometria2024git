@@ -1,0 +1,562 @@
+---
+title: "Tarea 1"
+author: "Ainé Fernández 188680"
+format: pdf
+editor: visual
+---
+
+```{r,librerias,echo=FALSE,warning=FALSE,message=FALSE}
+#Cargar librerías 
+library(dplyr)
+library(ggplot2)
+library(stargazer)
+library(MASS)
+library(mvtnorm)
+library(readr)
+library(knitr)
+library(scatterplot3d)
+library(gridExtra)
+library(skimr)
+library(DataExplorer)
+library(GGally)
+library(SmartEDA)
+library(kableExtra)
+library(patchwork)
+library(corrplot)
+library(boot)
+library(bootstrap)
+```
+
+```{r,readcsv,echo=F,message=FALSE}
+starbucks <- read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-12-21/starbucks.csv")
+
+```
+
+# Ejercicio 1: Normal Bivariada
+
+## Gráfica de superficie
+
+```{r,superficie,echo=FALSE,message=FALSE,fig.cap="Gráfica de superficie",fig.align='center',fig.height=6.5,fig.width=8}
+means<-c(40000,5)
+covmatrix<-matrix(c(15000000, -2000, -2000, 4), 2)
+d <- expand.grid(seq(0, 80000, length.out = 50 ), seq(0, 10, length.out = 50)) 
+dens1 <- dmvnorm(as.matrix(d), mean=means, sigma=covmatrix) 
+dens1 <- matrix(dens1, nrow = 50 )
+persp(dens1, theta = 45, phi = 45, expand = 0.6, shade = 0.2, col = "lightblue", xlab = "PIB per cápita", ylab = "Tasa de desempleo", zlab = "Densidad")
+
+
+```
+
+\newpage
+
+## Estadísticos Descriptivos
+
+```{r,sample,echo=FALSE,message=FALSE}
+set.seed(455)
+samplepaises<-rmvnorm(n = 200, mean = means, sigma = covmatrix)
+data<-as.data.frame(samplepaises)
+names(data)<-c("PIBPerCapita","TasaDesempleo")
+
+```
+
+```{r,estadisticos,echo=FALSE,message=FALSE,results='asis'}
+calculaStats <- function(variable1, variable2) {
+  media1 <- mean(variable1)
+  media2 <- mean(variable2)
+  var1 <- var(variable1)
+  var2 <- var(variable2)
+  desvst1 <- sd(variable1)
+  desvst2 <- sd(variable2)
+  min1 <- min(variable1)
+  min2 <- min(variable2)
+  max1 <- max(variable1)
+  max2 <- max(variable2)
+  cov_value <- cov(variable1, variable2)
+  cor_value <- cor(variable1, variable2)
+estadisticas <- data.frame(
+    Estadístico = c("Media", "Varianza", "Desviación estándar", "Mínimo", "Máximo", "Covarianza", "Correlación"),
+    Variable1 = c(media1, var1, desvst1, min1, max1, cov_value, cor_value),
+    Variable2 = c(media2, var2, desvst2, min2, max2, cov_value, cor_value)
+  )
+  
+  return(estadisticas)
+}
+
+stats <- calculaStats(data$PIBPerCapita, data$TasaDesempleo)
+names(stats)<-c("Estadístico","PIB Per Cápita","Tasa Desempleo")
+
+stargazer(stats, summary = FALSE, header = FALSE, title = "Estadísticos descriptivos")
+```
+
+### ¿Qué indican las medias de las variables simuladas? Compara con los valores teóricos de las medias establecidas en el ejercicio
+
+Las medias de las variables simuladas son muy similares a los valores teóricos de la distribución normal bivariada.
+
+```{r,echo=FALSE,warning=FALSE}
+tablaMedias <- data.frame(
+  Variable = c("PIB per cápita", "Tasa de desempleo"),
+  Teórica = c(40000, 5),
+  Simulada = c(40081.860, 5.169)
+)
+
+
+kable(tablaMedias, 
+      caption = "Comparación de medias valores teóricos vs medias de variables simuladas",
+      digits = c(0, 0, 3))
+```
+
+Esto muestra que se cumple la Ley de los Grandes Números, la cual establece que, a medida que aumenta el tamaño de la muestra, la media muestral se aproxima cada vez más a la media teórica o poblacional.
+
+### ¿Cómo interpretas la covarianza negativa entre el PIB per cápita y la tasa de desempleo? ¿Es coherente con la teoría económica?
+
+Existe una relación negativa entre estas dos variables, lo que significa que, si el PIB per cápita aumenta, la tasa de desempleo tiende a disminuir y viceversa. Esto es coherente con la Ley de Okun, que establece que un aumento del 1% en la tasa de desempleo está asociado con una disminución del 2% en el PIB. Aunque la Ley de Okun no se deriva de una predicción teórica específica, los datos empíricos suelen confirmar su validez.
+
+### ¿Qué puede inferirse sobre la correlación entre el PIB per cápita y la tasa de desempleo? ¿Considera que es una relación fuerte o débil?
+
+Sugiere que hay una relación negativa entre las dos variables, pero el valor de la correlación de -0.164 indica que esta relación es débil, ya que está muy cerca de cero, lo que señala una baja asociación entre ambas variables.
+
+## Gráficas
+
+```{r,histogramas,echo=FALSE,warning=FALSE}
+hist1<-ggplot(data, aes(x = PIBPerCapita)) +
+  geom_histogram(binwidth = 800, 
+                 fill = "lightcyan", 
+                 color = "black") +
+  labs(title = "Histograma del PIB per cápita", 
+       x = "PIB per cápita", 
+       y = "Frecuencia") +
+  xlim(29000, 50000) +
+  theme_bw()
+hist2<-ggplot(data, aes(x = TasaDesempleo)) +
+  geom_histogram(binwidth = .5, 
+                 fill = "lightcyan", 
+                 color = "black") +
+  labs(title = "Histograma de la Tasa de desempleo", 
+       x = "Tasa de desempleo", 
+       y = "Frecuencia") +
+  theme_bw()
+
+```
+
+```{r,histogramas2,echo=FALSE,warning=FALSE,fig.cap="Histogramas de las variables simuladas",fig.height=6,fig.width=10}
+
+hist1+hist2
+  
+
+```
+
+```{r,histogramas3,echo=FALSE,warning=FALSE,fig.cap="Scatterplot bivariado",fig.height=4.5,fig.width=8}
+scatterplot3d(data,main="Scatter plot bivariado", xlab = "PIB per cápita",ylab = "Tasa de desempleo",color="steelblue")
+```
+
+### ¿Qué sugiere el histograma bivariado sobre la relación entre el PIB per cápita y la tasa de desempleo? Comente sobre la densidad de puntos y cómo se distribuyen en la gráfica.
+
+Los puntos parecen estar distribuidos de manera uniforme en la parte superior del gráfico, lo que podría indicar que no existe una relación clara entre las dos variables. Esto se respalda con la baja correlación calculada previamente
+
+## Cálculo de probabilidades
+
+```{r,echo=FALSE}
+lower <- c(15000, -Inf) 
+upper <- c(18000, 3)
+probabilidad <- pmvnorm(lower = lower, upper = upper, mean = means, sigma = covmatrix)
+
+tablaProb<-data.frame(
+  PIBpercapita = "Entre 15,000 y 18,000",
+  Tasadedesempleo = "Menor a 3%",
+  Probabilidad = probabilidad[1]
+)
+kable(tablaProb, 
+      caption = "Cálculo de Probabilidad",
+      digits = c(0, 0, 14))
+```
+\newpage
+# Ejercicio 2: Statistics for Starbucks
+
+## EDA
+
+```{r,echo=FALSE}
+skim(starbucks)
+
+```
+
+```{r,correlaciones,echo=FALSE,warning=FALSE,fig.cap="Correlaciones",fig.height=6,fig.width=8}
+numeric_columns <- starbucks %>% 
+  dplyr::select(-milk, -whip) %>%  
+  dplyr::select(where(is.numeric)) 
+correlaciones<-cor(numeric_columns)
+corrplot(correlaciones)
+```
+
+
+```{r,n,echo=FALSE,warning=FALSE,fig.cap="Número de observaciones por bebida",fig.height=5,fig.width=6}
+ggplot(starbucks, aes(x = size)) +
+  geom_bar(fill="steelblue") +
+  labs(title = "Número de Observaciones por Tamaño", 
+       x = "Tamaño de la Bebida", 
+       y = "Número de Observaciones") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+Lo primero que debemos notar es que la base de datos no tiene observaciones faltantes, lo cual es bastante bueno para el análisis. Luego, encontramos que hay 11 variables numéricas, pero Milk y Whip son categóricas, ya que representan el tipo de leche y si se añadió crema batida o no.
+
+Otra observación interesante es que las calorías tienen una alta correlación con todas las otras variables, excepto con la cafeína, que parece tener una correlación negativa pero débil. De hecho, la cafeína no parece tener una relación fuerte con ninguna de las otras variables, y su relación débil con ellas parece ser negativa. Mientras tanto, las demás variables parecen estar fuertemente correlacionadas de manera positiva entre sí.
+
+Por otro lado, hay muy pocas observaciones del tamaño Trenta, mientras que hay más de los tamaños Tall, Grande y Venti, los tamaños comunes en Starbucks
+
+
+
+
+\newpage
+
+## Estadísticos descriptivos
+
+```{r,echo=FALSE,warning=FALSE,results='asis'}
+starbucksAnalysis <- dplyr::select(starbucks, calories, sugar_g, caffeine_mg, total_fat_g)
+starbucksAnalysis<-as.data.frame(starbucksAnalysis)
+stargazer(starbucksAnalysis,header=FALSE, title="Estadísticos descriptivos",
+          digits=1,summary.stat=c("n","mean","p25","median","p75","sd","min","max"))
+```
+
+
+## Gráficos 
+
+
+
+```{r,histogramasdef,echo=FALSE,warning=FALSE}
+hist3<-ggplot(starbucks, aes(x = calories)) +
+  geom_histogram(fill = "lightcyan", 
+                 color = "black") +
+  labs(title = "Histograma de Calorías", 
+       x = "Calorías", 
+       y = "Frecuencia") +
+  theme_bw()
+
+hist4<-ggplot(starbucks, aes(x =total_fat_g)) +
+  geom_histogram(binwidth = .5, 
+                 fill = "lightcyan", 
+                 color = "black") +
+  labs(title = "Histograma de Grasa total", 
+       x = "Grasa total", 
+       y = "Frecuencia") +
+  theme_bw()
+hist5<-ggplot(starbucks, aes(x =caffeine_mg)) +
+  geom_histogram(fill = "lightcyan", 
+                 color = "black") +
+  labs(title = "Histograma de Cafeína", 
+       x = "Cafeína", 
+       y = "Frecuencia") +
+  theme_bw()
+hist6<-ggplot(starbucks, aes(x =sugar_g)) +
+  geom_histogram(fill = "lightcyan", 
+                 color = "black") +
+  labs(title = "Histograma de Azúcar", 
+       x = "Azúcar", 
+       y = "Frecuencia")+
+  theme_bw()
+
+```
+
+```{r,histogramas4,echo=FALSE,warning=FALSE,message=FALSE,fig.cap="Histogramas de las variables de interés",fig.height=6,fig.width=8}
+(hist3+hist4)/(hist5+hist6)
+```
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE}
+# Scatter plot de Calorías vs. Azúcar
+sp1<-ggplot(starbucks, aes(x = sugar_g, y = calories)) +
+  geom_point(color="steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Calorías vs. Azúcar", x = "Azúcar (g)", y = "Calorías (KCal)") +
+  theme_bw()
+
+
+sp2<-ggplot(starbucks, aes(x = total_fat_g, y = calories)) +
+  geom_point(color="steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Calorías vs. Grasa Total", x = "Grasa Total (g)", y = "Calorías (KCal)") +
+  theme_bw()
+
+
+sp3<-ggplot(starbucks, aes(x = caffeine_mg, y = calories)) +
+  geom_point(color="steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Calorías vs. Cafeína", x = "Cafeína (mg)", y = "Calorías (KCal)") +
+  theme_bw()
+
+
+sp4<-ggplot(starbucks, aes(x = total_fat_g, y = sugar_g)) +
+  geom_point(color="steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Azúcar vs. Grasa Total", x = "Grasa Total (g)", y = "Azúcar (g)") +
+  theme_bw()
+
+
+sp5<-ggplot(starbucks, aes(x = caffeine_mg, y = sugar_g)) +
+  geom_point(color="steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Azúcar vs. Cafeína", x = "Cafeína (mg)", y = "Azúcar (g)") +
+  theme_bw()
+
+
+sp6<-ggplot(starbucks, aes(x = caffeine_mg, y = total_fat_g)) +
+  geom_point(color="steelblue") +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Grasa Total vs. Cafeína", x = "Cafeína (mg)", y = "Grasa Total (g)") +
+  theme_bw()
+
+```
+
+```{r,splots,echo=FALSE,warning=FALSE,message=FALSE,fig.cap="Diagramas de dispersión de variables de interés",fig.height=8,fig.width=8}
+(sp1+sp2)/(sp3+sp4)/(sp5+sp6)
+```
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE}
+
+bp1<-ggplot(starbucks, aes(x = size, y = calories)) +
+  geom_boxplot() +
+  labs(title = "Boxplot de Calorías por tamaño",
+       x = "Tamaño de la Bebida", 
+       y = "Calorías (KCal)") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+bp2<-ggplot(starbucks, aes(x = size, y = sugar_g)) +
+  geom_boxplot() +
+  labs(title = "Boxplot de Azúcar por tamaño",
+       x = "Tamaño de la Bebida", 
+       y = "Azúcar (g)") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+bp3<-ggplot(starbucks, aes(x = size, y = caffeine_mg)) +
+  geom_boxplot() +
+  labs(title = "Boxplot de Cafeína por tamaño",
+       x = "Tamaño de la Bebida", 
+       y = "Cafeína (mg)") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+bp4<-ggplot(starbucks, aes(x = size, y = total_fat_g)) +
+  geom_boxplot() +
+  labs(title = "Boxplot de Grasa Total por tamaño",
+       x = "Tamaño de la Bebida", 
+       y = "Grasa Total (g)") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r,bplots,echo=FALSE,warning=FALSE,fig.cap="Diagramas de caja y brazo de variables de interés",fig.height=8,fig.width=8}
+(bp1+bp2)/(bp3+bp4)
+```
+
+## Intervalos de confianza 
+
+
+
+```{r,echo=FALSE}
+intervalos_confianza <- starbucks %>% 
+  group_by(size) %>%  
+  summarise(
+    mean_calories = mean(calories, na.rm = TRUE),  
+    n = n(),  
+    margin = sd(calories, na.rm = TRUE) / sqrt(n),  
+    lower_ci = mean_calories - qnorm(0.975) * margin,  
+    upper_ci = mean_calories + qnorm(0.975) * margin  
+  )
+
+```
+
+```{r,intervaloplot,echo=FALSE,warning=FALSE,fig.cap="Intervalos de confianza del 95% para el promedio de calorías por tamaño",fig.height=4,fig.width=8}
+
+ggplot(intervalos_confianza, aes(x = size, y = mean_calories)) +
+  geom_point(size = 2,color="red") +
+  geom_errorbar(aes(ymin = lower_ci, ymax = upper_ci), width = 0.2,color="steelblue") +  
+  labs(title = "Intervalos de confianza del 95% para el promedio de calorías por tamaño",
+       x = "Tamaño de la bebida",
+       y = "Promedio de calorías") +
+  theme_bw()
+```
+Los puntos rojos en el gráfico representan la estimación puntual del promedio de las calorías. Podemos observar que en los tamaños pequeños de bebida hay menos variabilidad en el promedio de las calorías, y generalmente son medias más bajas. El tamaño Trenta, que es el de mayor capacidad, muestra mucha variabilidad, pero su media no es tan alta como la del tamaño Venti. También es cierto que no se tienen tantas observaciones del tamaño Trenta. En general, podemos concluir que las calorías aumentan conforme al tamaño: los tamaños con mayores capacidades tienden a tener más calorías.
+
+## Prueba de hipótesis 
+
+
+**Hipótesis nula (H0)**: El contenido promedio de grasa en la leche sin grasa es igual o mayor que en la leche entera.
+
+
+**Hipótesis alternativa (H1)**: El contenido promedio de grasa en la leche sin grasa es menor que en la leche entera.
+
+
+
+```{r,echo=FALSE}
+nonfat_milk <- starbucks %>% filter(milk == 1)  
+whole_milk <- starbucks %>% filter(milk == 5)   
+
+
+t_test_result <- t.test(nonfat_milk$total_fat_g, whole_milk$total_fat_g, 
+                        alternative = "less", 
+                        conf.level = 0.95)
+
+
+p_value <- t_test_result$p.value
+t_statistic <- t_test_result$statistic
+mean_nonfat <- mean(nonfat_milk$total_fat_g, na.rm = TRUE)
+mean_whole <- mean(whole_milk$total_fat_g, na.rm = TRUE)
+conclusion<-"Rechazar H0"
+
+
+
+result_table <- data.frame(
+  MediaNonFat = mean_nonfat,
+  MediaWhole = mean_whole,
+  EstadisticoT = t_statistic,
+  Valor_p = format(p_value,scientific = TRUE),
+  Conclusión = conclusion)
+
+kable(result_table, caption = "Prueba de hipótesis Media de Grasa Total")
+
+```
+
+Podemos concluir que, basándonos en esta prueba, hay suficiente evidencia para decir  que el contenido de grasa total en los cafés con leche descremada **NO** es igual o mayor que en los cafés con leche entera.
+
+
+## Bootstrap y Jackknife
+
+
+```{r,correlation,echo=FALSE}
+correlation <- cor(starbucks$caffeine_mg, starbucks$calories)
+
+tablaCorrelacion <- data.frame(
+   Variables= "Cafeína y Calorías",
+  Correlación = correlation
+)
+
+kable(tablaCorrelacion, 
+      caption = "Correlación entre Cafeína y Calorías", 
+      digits = c(0, 4))
+```
+
+
+```{r,echo=FALSE,warning=FALSE,message=FALSE, fig.cap="Relación entre calorías y cafeína",fig.height=4,fig.width=8}
+model <- lm(calories ~ caffeine_mg, data = starbucks)
+
+spcc <- ggplot(starbucks, aes(x = caffeine_mg, y = calories)) +
+  geom_point(color = "plum") +
+  geom_smooth(method = "lm", se = TRUE, color = "red", fill = "lightgreen") + 
+  labs(title = "Calorías vs. Cafeína", x = "Cafeína (mg)", y = "Calorías") +
+  theme_bw()
+
+spcc
+```
+
+```{r,echo=FALSE}
+corCafeCal <- function(data, indices) {
+  sample_data <- data[indices, ]
+  return(cor(sample_data$caffeine_mg, sample_data$calories))
+}
+set.seed(455)
+
+indices_50 <- sample(1:nrow(starbucks), size = 0.5 * nrow(starbucks), replace = TRUE)
+bootstrap_50 <- boot(data = starbucks[indices_50, ], statistic = corCafeCal, R = 500)
+bootstrap_total <- boot(data = starbucks, statistic = corCafeCal, R = 500)
+
+```
+
+
+
+```{r,echo=FALSE}
+theta <- function(x, data) {
+  cor(data[x, "caffeine_mg"], data[x, "calories"])
+}
+
+jackknife_correlation <- function(data,n) {  
+  jackknife_results <- jackknife(1:n, function(x) theta(x, data))
+  return(jackknife_results)
+}
+
+randomstarbucks<-sample(starbucks,floor(.5*nrow(starbucks)),replace=TRUE)
+resultsjack50 <- jackknife_correlation(randomstarbucks,nrow(randomstarbucks))
+resultsjack100 <- jackknife_correlation(starbucks,nrow(starbucks))
+
+
+
+
+
+```
+
+
+```{r,echo=FALSE}
+
+sd_bootstrap_50 <- sd(bootstrap_50$t)
+sd_bootstrap_total <- sd(bootstrap_total$t)
+sd_jackknife_50 <- sd(resultsjack50$jack.values)
+sd_jackknife_100 <- sd(resultsjack100$jack.values)
+
+combined_results_table <- data.frame(
+  Método = c("Bootstrap (50% datos)", "Bootstrap (100% datos)", 
+             "Jackknife (50% datos)", "Jackknife (100% datos)"),
+  DesviaciónEstándar = c(sd_bootstrap_50, sd_bootstrap_total, 
+                          sd_jackknife_50, sd_jackknife_100)
+)
+
+kable(combined_results_table, 
+      caption = "Resultados Jackknife vs Bootstrap",
+      digits = 4)
+
+```
+
+```{r,echo=FALSE}
+
+histogram_bootstrap_50 <- ggplot(data.frame(Estimaciones = bootstrap_50$t), aes(x = Estimaciones)) +
+  geom_histogram(fill = "lightblue", color = "black") +
+  geom_vline(xintercept = correlation, color = "red",linewidth=1) +
+  labs(title = "Bootstrap (50% datos)",
+       x = "Estimaciones",
+       y = "Frecuencia") +
+  theme_bw()
+
+histogram_bootstrap_total <- ggplot(data.frame(Estimaciones = bootstrap_total$t), aes(x = Estimaciones)) +
+  geom_histogram( fill = "lightgreen", color = "black") +
+  geom_vline(xintercept = correlation, color = "red",linewidth=1) +
+  labs(title = "Bootstrap (100% datos)",
+       x = "Estimaciones",
+       y = "Frecuencia") +
+  theme_bw()
+
+
+histjack50 <- ggplot(data.frame(Estimaciones = resultsjack50$jack.values), aes(x = Estimaciones)) +
+  geom_histogram( fill = "steelblue", color = "black") +
+  geom_vline(xintercept = correlation, color = "red",linewidth=1) +
+  labs(title = "Jackknife (50% datos)",
+       x = "Estimaciones",
+       y = "Frecuencia") +
+  theme_bw()
+
+histjacktotal <- ggplot(data.frame(Estimaciones = resultsjack100$jack.values), aes(x = Estimaciones)) +
+  geom_histogram( fill = "lightgoldenrod", color = "black") +
+  geom_vline(xintercept = correlation, color = "red",linewidth=1) +
+  labs(title = "Jackknife (100% datos)",
+       x = "Estimaciones",
+       y = "Frecuencia") +
+  theme_bw()
+
+
+
+```
+
+
+```{r,echo=FALSE,message=FALSE,fig.cap="Bootstrap vs Jackknife",fig.height=6.5,fig.width=8}
+(histogram_bootstrap_50 + histogram_bootstrap_total) /
+                  (histjack50 + histjacktotal)
+```
+Podemos observar que los estimadores de Jackknife tienen menos varianza que los de Bootstrap al tener las estimaciones más concentradas hacia el valor real de la correlación, esto concuerda con las desviaciones estándar calculadas. 
+
+
+# Referencias
+
+Investopedia. (s.f.). Ley de Okun. Investopedia. Recuperado el 10 de septiembre de 2024, de https://www.investopedia.com/terms/o/okunslaw.asp
